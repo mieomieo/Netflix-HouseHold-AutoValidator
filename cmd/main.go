@@ -33,7 +33,7 @@ func main() {
 	netflix.StartCleanup()
 
 	// Initialize Netflix service
-	browser := netflix.NewRodBrowser()
+	browser := netflix.NewRodBrowser(cfg.Telegram)
 	netflixService := netflix.NewService(browser, cfg)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

@@ -13,7 +13,12 @@ func TestLoad(t *testing.T) {
   mailbox: "INBOX"
 targetFrom: "info@test.com"
 targetSubject: "Test Subject"
+telegram:
+  botToken: "yaml-token"
+  chatID: "yaml-chat"
 `
+	t.Setenv("TELEGRAM_BOT_TOKEN", "env-token")
+	t.Setenv("TELEGRAM_CHAT_ID", "")
 
 	tmpFile, err := os.CreateTemp("", "config-*.yaml")
 	if err != nil {
@@ -39,5 +44,12 @@ targetSubject: "Test Subject"
 
 	if cfg.TargetFrom != "info@test.com" {
 		t.Errorf("Expected targetFrom 'info@test.com', got '%s'", cfg.TargetFrom)
+	}
+
+	if cfg.Telegram.BotToken != "env-token" {
+		t.Errorf("Expected Telegram bot token 'env-token', got '%s'", cfg.Telegram.BotToken)
+	}
+	if cfg.Telegram.ChatID != "yaml-chat" {
+		t.Errorf("Expected Telegram chat ID 'yaml-chat', got '%s'", cfg.Telegram.ChatID)
 	}
 }

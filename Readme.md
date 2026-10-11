@@ -27,8 +27,12 @@ This application monitors an IMAP mailbox for Netflix emails containing househol
      mailbox: "INBOX"
    targetFrom: "info@account.netflix.com"
    targetSubject: "Important : comment mettre à jour votre foyer Netflix"
+   telegram:
+     botToken: "your-telegram-bot-token"
+     chatID: "your-telegram-chat-id"
 ```
 **Note:** Make sure to replace the values with your own information.
+Telegram credentials can also be supplied through `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`; these environment variables override the YAML values.
 
 ## 🚀 Usage
 
@@ -58,6 +62,8 @@ go test ./...
 | EMAIL_MAILBOX  | Mailbox name     |
 | TARGET_FROM    | Expected sender  |
 | TARGET_SUBJECT | Expected subject |
+| TELEGRAM_BOT_TOKEN | Telegram bot token (overrides `telegram.botToken`) |
+| TELEGRAM_CHAT_ID | Telegram chat ID (overrides `telegram.chatID`) |
 
 ### 🐳 Docker
 
@@ -75,6 +81,8 @@ docker run \
   -e EMAIL_PASSWORD=your-password \
   -e TARGET_FROM=info@account.netflix.com \
   -e TARGET_SUBJECT="Important : comment mettre à jour votre foyer Netflix" \
+  -e TELEGRAM_BOT_TOKEN=your-telegram-bot-token \
+  -e TELEGRAM_CHAT_ID=your-telegram-chat-id \
   phd59fr/netflix-household-autovalidator
 ```
 

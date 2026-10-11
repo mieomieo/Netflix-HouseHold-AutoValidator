@@ -18,11 +18,13 @@ import (
 
 var activeRodSessions atomic.Int32
 
-type RodBrowser struct{}
+type RodBrowser struct {
+	telegram models.TelegramConfig
+}
 
 // NewRodBrowser creates a new instance of RodBrowser
-func NewRodBrowser() *RodBrowser {
-	return &RodBrowser{}
+func NewRodBrowser(telegram models.TelegramConfig) *RodBrowser {
+	return &RodBrowser{telegram: telegram}
 }
 
 // OpenUpdatePrimaryLocation attempts to open the provided link using Rod, handling login if necessary.
@@ -163,6 +165,9 @@ func (rb *RodBrowser) attemptOpenLink(
 	switch outcome {
 	case outcomeConfirmed:
 		locallog.Info("Clicked on confirm button successfully")
+		if err := SendTelegramMessage(rb.telegram.BotToken, rb.telegram.ChatID, "✅ Link đã được confirm thành công! TraceID: "+traceID); err != nil {
+			locallog.WithError(err).Warn("Failed to send Telegram message")
+		}
 		return models.ResultSuccess, nil
 
 	case outcomeExpired:

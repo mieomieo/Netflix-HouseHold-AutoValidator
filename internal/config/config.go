@@ -39,6 +39,9 @@ func overrideFromEnv(cfg *models.Config) {
 	setString(&cfg.Email.Login, "EMAIL_LOGIN")
 	setString(&cfg.Email.Password, "EMAIL_PASSWORD")
 	setString(&cfg.Email.MailBox, "EMAIL_MAILBOX")
+
+	setString(&cfg.Telegram.BotToken, "TELEGRAM_BOT_TOKEN")
+	setString(&cfg.Telegram.ChatID, "TELEGRAM_CHAT_ID")
 }
 
 // setString checks if the specified environment variable is set and not empty, and if so, assigns its value to the provided string pointer

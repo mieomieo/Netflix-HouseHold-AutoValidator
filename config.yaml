@@ -4,4 +4,7 @@ email:
   password: "mypassword"
   mailbox: "INBOX"
 targetFrom: "info@account.netflix.com"
-targetSubject: "Important : comment mettre à jour votre foyer Netflix"
+targetSubject: "Lưu ý quan trọng: Cách cập nhật Hộ gia đình Netflix"
+telegram:
+  botToken: ""
+  chatID: ""
