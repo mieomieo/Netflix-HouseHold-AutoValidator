@@ -2,9 +2,9 @@ package models
 
 // Config represents the application configuration
 type Config struct {
-	Email         EmailConfig `yaml:"email"`
-	TargetFrom    string      `yaml:"targetFrom"`
-	TargetSubject string      `yaml:"targetSubject"`
+	Email         EmailConfig    `yaml:"email"`
+	TargetFrom    string         `yaml:"targetFrom"`
+	TargetSubject string         `yaml:"targetSubject"`
 	Telegram      TelegramConfig `yaml:"telegram"`
 }
 
