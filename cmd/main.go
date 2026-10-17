@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"os/signal"
+	"strings"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -25,6 +26,16 @@ func main() {
 	cfg, err := config.Load("config.yaml")
 	if err != nil {
 		logging.Log.Fatalf("Error reading configuration file: %v", err)
+	}
+
+	if cfg.Telegram.BotToken != "" && cfg.Telegram.ChatID != "" {
+		logging.AddTelegramHook(func(message string) error {
+			err := netflix.SendTelegramMessage(cfg.Telegram.BotToken, cfg.Telegram.ChatID, message)
+			if err != nil {
+				return errors.New(strings.ReplaceAll(err.Error(), cfg.Telegram.BotToken, "[REDACTED]"))
+			}
+			return nil
+		})
 	}
 
 	logging.Log.Info("Starting Netflix email verification process (IMAP IDLE mode)")

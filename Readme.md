@@ -12,6 +12,7 @@ This application monitors an IMAP mailbox for Netflix emails containing househol
 **Key Features:**
 - 📧 Monitors your mailbox for Netflix verification emails
 - ⚡ Automatically validates household location from email links
+- 📲 Sends important status updates, warnings, errors, and processing summaries to Telegram
 - 🧠 Ignores expired or invalid links
 - 📊 Structured JSON logs with trace IDs
 - 🐳 Ready to run with Docker
@@ -33,6 +34,7 @@ This application monitors an IMAP mailbox for Netflix emails containing househol
 ```
 **Note:** Make sure to replace the values with your own information.
 Telegram credentials can also be supplied through `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`; these environment variables override the YAML values.
+When both Telegram credentials are configured, important status updates, warnings, errors, and processing summaries are sent to the configured chat in batches. Routine informational logs remain in the application output. Successful confirmations continue to send their own Telegram notification.
 
 ## 🚀 Usage
 

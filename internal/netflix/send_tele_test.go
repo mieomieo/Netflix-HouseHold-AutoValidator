@@ -4,9 +4,26 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 )
+
+func TestTelegram(t *testing.T) {
+	if os.Getenv("TELEGRAM_LIVE_TEST") != "1" {
+		t.Skip("set TELEGRAM_LIVE_TEST=1 to enable the live Telegram test")
+	}
+
+	token := os.Getenv("TELEGRAM_BOT_TOKEN")
+	chatID := os.Getenv("TELEGRAM_CHAT_ID")
+	if token == "" || chatID == "" {
+		t.Skip("set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID to send a live Telegram message")
+	}
+
+	if err := SendTelegramMessage(token, chatID, "3333 "); err != nil {
+		t.Fatalf("SendTelegramMessage returned error: %v", err)
+	}
+}
 
 func TestSendTelegramMessage(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
