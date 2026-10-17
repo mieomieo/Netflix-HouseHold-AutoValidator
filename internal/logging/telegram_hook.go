@@ -14,7 +14,8 @@ const (
 	telegramBatchWindow  = 2 * time.Second
 	telegramBatchSize    = 8
 	telegramQueueSize    = 256
-	maxTelegramLineRunes = 400
+	maxTelegramTextRunes = 4096
+	telegramChunkRunes   = 3900
 )
 
 type telegramHook struct {
@@ -36,54 +37,63 @@ func (h *telegramHook) Levels() []logrus.Level {
 }
 
 func (h *telegramHook) Fire(entry *logrus.Entry) error {
-	if !shouldNotifyTelegram(entry) {
-		return nil
+	formatted, err := entry.Logger.Formatter.Format(entry)
+	if err != nil {
+		return fmt.Errorf("format Telegram log entry: %w", err)
 	}
 
-	message := fmt.Sprintf("[%s] %s", strings.ToUpper(entry.Level.String()), truncateRunes(entry.Message, maxTelegramLineRunes))
-	if traceID, ok := entry.Data["trace_id"]; ok {
-		message += " (trace_id: " + fmt.Sprint(traceID) + ")"
-	}
-
-	select {
-	case h.messages <- message:
-	default:
-		_, _ = fmt.Fprintln(os.Stderr, "Telegram notification queue full; notification was not queued")
+	for _, message := range splitTelegramMessage(strings.TrimRight(string(formatted), "\r\n")) {
+		select {
+		case h.messages <- message:
+		default:
+			_, _ = fmt.Fprintln(os.Stderr, "Telegram notification queue full; notification was not queued")
+			return nil
+		}
 	}
 	return nil
 }
 
-func shouldNotifyTelegram(entry *logrus.Entry) bool {
-	if entry.Level <= logrus.WarnLevel {
-		return true
-	}
-	if entry.Level != logrus.InfoLevel {
-		return false
+func splitTelegramMessage(message string) []string {
+	runes := []rune(message)
+	if len(runes) <= maxTelegramTextRunes {
+		return []string{message}
 	}
 
-	for _, prefix := range []string{
-		"Starting Netflix email verification process",
-		"IMAP connection established successfully",
-		"Processing cycle completed",
-		"Shutting down gracefully",
-	} {
-		if strings.HasPrefix(entry.Message, prefix) {
-			return true
+	partCount := (len(runes) + telegramChunkRunes - 1) / telegramChunkRunes
+	parts := make([]string, 0, partCount)
+	for start, partNumber := 0, 1; start < len(runes); start, partNumber = start+telegramChunkRunes, partNumber+1 {
+		end := start + telegramChunkRunes
+		if end > len(runes) {
+			end = len(runes)
 		}
+		parts = append(parts, fmt.Sprintf("[part %d/%d]\n%s", partNumber, partCount, string(runes[start:end])))
 	}
-	return false
+	return parts
 }
 
 func (h *telegramHook) run() {
 	var lastSent time.Time
-	for first := range h.messages {
+	var pending string
+	for {
+		first := pending
+		if first == "" {
+			first = <-h.messages
+		}
+		pending = ""
 		batch := []string{first}
+		batchRunes := utf8.RuneCountInString(first)
 		timer := time.NewTimer(telegramBatchWindow)
 	collect:
 		for len(batch) < telegramBatchSize {
 			select {
 			case message := <-h.messages:
+				messageRunes := utf8.RuneCountInString(message)
+				if batchRunes+1+messageRunes > maxTelegramTextRunes {
+					pending = message
+					break collect
+				}
 				batch = append(batch, message)
+				batchRunes += 1 + messageRunes
 			case <-timer.C:
 				break collect
 			}
@@ -103,12 +113,4 @@ func (h *telegramHook) run() {
 		}
 		lastSent = time.Now()
 	}
-}
-
-func truncateRunes(value string, limit int) string {
-	if utf8.RuneCountInString(value) <= limit {
-		return value
-	}
-	runes := []rune(value)
-	return string(runes[:limit]) + "..."
 }
