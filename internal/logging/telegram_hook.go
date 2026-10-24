@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -23,6 +24,11 @@ type telegramHook struct {
 	messages chan string
 }
 
+var telegramTraces = struct {
+	sync.RWMutex
+	active map[string]int
+}{active: make(map[string]int)}
+
 func AddTelegramHook(send func(string) error) {
 	hook := &telegramHook{
 		send:     send,
@@ -32,11 +38,39 @@ func AddTelegramHook(send func(string) error) {
 	go hook.run()
 }
 
+func BeginTelegramTrace(traceID string) func() {
+	if traceID == "" {
+		return func() {}
+	}
+
+	telegramTraces.Lock()
+	telegramTraces.active[traceID]++
+	telegramTraces.Unlock()
+
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			telegramTraces.Lock()
+			if telegramTraces.active[traceID] <= 1 {
+				delete(telegramTraces.active, traceID)
+			} else {
+				telegramTraces.active[traceID]--
+			}
+			telegramTraces.Unlock()
+		})
+	}
+}
+
 func (h *telegramHook) Levels() []logrus.Level {
 	return logrus.AllLevels
 }
 
 func (h *telegramHook) Fire(entry *logrus.Entry) error {
+	traceID, ok := entry.Data["trace_id"].(string)
+	if !ok || !isTelegramTraceActive(traceID) {
+		return nil
+	}
+
 	formatted, err := entry.Logger.Formatter.Format(entry)
 	if err != nil {
 		return fmt.Errorf("format Telegram log entry: %w", err)
@@ -51,6 +85,16 @@ func (h *telegramHook) Fire(entry *logrus.Entry) error {
 		}
 	}
 	return nil
+}
+
+func isTelegramTraceActive(traceID string) bool {
+	if traceID == "" {
+		return false
+	}
+
+	telegramTraces.RLock()
+	defer telegramTraces.RUnlock()
+	return telegramTraces.active[traceID] > 0
 }
 
 func splitTelegramMessage(message string) []string {

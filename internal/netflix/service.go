@@ -37,6 +37,9 @@ func (s *Service) HandleEmail(email *models.Email) bool {
 		return false
 	}
 
+	endTelegramTrace := logging.BeginTelegramTrace(email.TraceID)
+	defer endTelegramTrace()
+
 	// Check body not empty
 	if email.BodyText == "" {
 		locallog.Info("Empty email body, nothing to process")

@@ -15,6 +15,9 @@ func TestTelegramHookFireSendsCompleteStructuredLog(t *testing.T) {
 	hook := &telegramHook{messages: make(chan string, 1)}
 	message := strings.Repeat("complete-log-", 50)
 
+	endTrace := BeginTelegramTrace("trace-123")
+	defer endTrace()
+
 	entry := logrus.NewEntry(logger).WithField("trace_id", "trace-123")
 	entry.Level = logrus.DebugLevel
 	entry.Message = message
@@ -39,6 +42,23 @@ func TestTelegramHookFireSendsCompleteStructuredLog(t *testing.T) {
 		}
 	default:
 		t.Fatal("Fire() did not queue the log entry")
+	}
+}
+
+func TestTelegramHookFireIgnoresLogsOutsideNetflixTrace(t *testing.T) {
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.JSONFormatter{})
+	hook := &telegramHook{messages: make(chan string, 1)}
+
+	entry := logrus.NewEntry(logger).WithField("trace_id", "unrelated-trace")
+	entry.Level = logrus.InfoLevel
+	entry.Message = "application log"
+	if err := hook.Fire(entry); err != nil {
+		t.Fatalf("Fire() returned error: %v", err)
+	}
+
+	if len(hook.messages) != 0 {
+		t.Fatal("Fire() queued a log outside an active Netflix trace")
 	}
 }
 
