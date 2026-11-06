@@ -12,6 +12,7 @@ RUN apk add --no-cache upx chromium libstdc++ libx11 libxcomposite libxrandr lib
 FROM debian:stable-slim
 
 WORKDIR /
+ENV TMPDIR=/tmp
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
      chromium wget ca-certificates && \

@@ -105,7 +105,9 @@ func (rb *RodBrowser) attemptOpenLink(
 	u := launcher.New().
 		Headless(true).
 		NoSandbox(true).
-		UserDataDir(tmpDir)
+		UserDataDir(tmpDir).
+		Set("disk-cache-size", "67108864").
+		Set("disable-dev-shm-usage")
 
 	const systemChromium = "/usr/bin/chromium"
 	if _, err := os.Stat(systemChromium); err == nil {
@@ -340,7 +342,45 @@ func createRodTempDir() (string, error) {
 		lastErr = err
 	}
 
+	cleanupOldRodTempDirs(time.Hour)
+
+	for _, baseDir := range candidates {
+		if baseDir == "" {
+			continue
+		}
+		if tmpDir, err := os.MkdirTemp(baseDir, "rod-netflix-*"); err == nil {
+			return tmpDir, nil
+		} else {
+			lastErr = err
+		}
+	}
+
 	return "", fmt.Errorf("create Rod temp directory in candidates %v: %w", candidates, lastErr)
+}
+
+func cleanupOldRodTempDirs(maxAge time.Duration) {
+	for _, baseDir := range rodTempCandidates() {
+		matches, err := filepath.Glob(filepath.Join(baseDir, "rod-netflix-*"))
+		if err != nil {
+			continue
+		}
+
+		for _, dir := range matches {
+			info, err := os.Stat(dir)
+			if err == nil && time.Since(info.ModTime()) > maxAge {
+				_ = os.RemoveAll(dir)
+			}
+		}
+	}
+}
+
+func rodTempCandidates() []string {
+	candidates := []string{}
+	if configured := os.Getenv("ROD_TEMP_DIR"); configured != "" {
+		candidates = append(candidates, configured)
+	}
+	candidates = append(candidates, os.TempDir(), "/var/tmp")
+	return candidates
 }
 
 // sanitizeURL redacts sensitive query parameters from the URL for safe logging
