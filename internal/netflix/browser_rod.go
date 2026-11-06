@@ -91,7 +91,7 @@ func (rb *RodBrowser) attemptOpenLink(
 		}
 	}()
 
-	tmpDir, err := os.MkdirTemp("", "rod-netflix-*")
+	tmpDir, err := createRodTempDir()
 	if err != nil {
 		locallog.WithError(err).Error("failed to create temp user data dir")
 		return models.ResultFailed, err
@@ -267,6 +267,8 @@ return {
 
 // StartCleanup starts a background goroutine that cleans up old Rod temp directories
 func StartCleanup() {
+	cleanupRodTempDirs()
+
 	go func() {
 		ticker := time.NewTicker(1 * time.Hour)
 		defer ticker.Stop()
@@ -276,23 +278,69 @@ func StartCleanup() {
 				logging.Log.Info("Skipping /tmp cleanup: active Rod sessions detected")
 				continue
 			}
-
-			pattern := filepath.Join(os.TempDir(), "rod-netflix-*")
-			matches, err := filepath.Glob(pattern)
-			if err != nil {
-				logging.Log.WithError(err).Warn("Failed to glob temp directories")
-				continue
-			}
-
-			for _, dir := range matches {
-				if err := os.RemoveAll(dir); err != nil {
-					logging.Log.WithError(err).Warnf("Failed to remove temp dir: %s", dir)
-				} else {
-					logging.Log.Infof("Cleaned up temp dir: %s", dir)
-				}
-			}
+			cleanupRodTempDirs()
 		}
 	}()
+}
+
+func cleanupRodTempDirs() {
+	seen := map[string]struct{}{}
+	candidates := []string{}
+	if configured := os.Getenv("ROD_TEMP_DIR"); configured != "" {
+		candidates = append(candidates, configured)
+	}
+	candidates = append(candidates, os.TempDir(), "/var/tmp")
+
+	for _, baseDir := range candidates {
+		if baseDir == "" {
+			continue
+		}
+		if _, ok := seen[baseDir]; ok {
+			continue
+		}
+		seen[baseDir] = struct{}{}
+
+		pattern := filepath.Join(baseDir, "rod-netflix-*")
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			logging.Log.WithError(err).Warn("Failed to glob temp directories")
+			continue
+		}
+
+		for _, dir := range matches {
+			if err := os.RemoveAll(dir); err != nil {
+				logging.Log.WithError(err).Warnf("Failed to remove temp dir: %s", dir)
+			} else {
+				logging.Log.Infof("Cleaned up temp dir: %s", dir)
+			}
+		}
+	}
+}
+
+func createRodTempDir() (string, error) {
+	candidates := []string{}
+	if configured := os.Getenv("ROD_TEMP_DIR"); configured != "" {
+		candidates = append(candidates, configured)
+	}
+	candidates = append(candidates, os.TempDir(), "/var/tmp")
+
+	var lastErr error
+	for _, baseDir := range candidates {
+		if baseDir == "" {
+			continue
+		}
+		if err := os.MkdirAll(baseDir, 0o755); err != nil {
+			lastErr = err
+			continue
+		}
+		tmpDir, err := os.MkdirTemp(baseDir, "rod-netflix-*")
+		if err == nil {
+			return tmpDir, nil
+		}
+		lastErr = err
+	}
+
+	return "", fmt.Errorf("create Rod temp directory in candidates %v: %w", candidates, lastErr)
 }
 
 // sanitizeURL redacts sensitive query parameters from the URL for safe logging
